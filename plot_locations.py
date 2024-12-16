@@ -9,19 +9,20 @@ def create_empty_map():
     fig.update_layout(
         showlegend=False,
         geo=dict(
-            scope='world',
+            scope='europe',  # Focus on Europe since many books are set there
             showland=True,
             showcountries=True,
             landcolor='rgb(243, 243, 243)',
             countrycolor='rgb(204, 204, 204)',
             showocean=True,
             oceancolor='rgb(230, 230, 250)',
-            projection_type='equirectangular',
+            projection_type='mercator',
             showcoastlines=True,
             coastlinecolor='rgb(204, 204, 204)',
+            center=dict(lon=13.4, lat=52.5),  # Center on Berlin
             showframe=False
         ),
-        height=500,
+        height=600,
         margin=dict(l=0, r=0, t=0, b=0)
     )
     
@@ -33,7 +34,7 @@ def create_location_map(df):
         df,
         lat='lat',
         lon='lon',
-        size='count',  # Size points by mention count
+        size='count',
         hover_name='name',
         hover_data={
             'count': True,
@@ -42,34 +43,27 @@ def create_location_map(df):
         },
         title='Location Mentions',
         size_max=30,
+        color_discrete_sequence=['darkblue']
     )
     
-    # Update layout for better visibility
     fig.update_layout(
         showlegend=False,
         geo=dict(
-            scope='world',
+            scope='europe',
             showland=True,
             showcountries=True,
             showocean=True,
             countrycolor='rgb(204, 204, 204)',
             landcolor='rgb(243, 243, 243)',
             oceancolor='rgb(230, 230, 250)',
-            projection_type='equirectangular',
+            projection_type='mercator',
             showcoastlines=True,
             coastlinecolor='rgb(204, 204, 204)',
+            center=dict(lon=13.4, lat=52.5),  # Center on Berlin
             showframe=False
         ),
-        height=500,
+        height=600,
         margin=dict(l=0, r=0, t=0, b=0)
-    )
-    
-    # Update marker style
-    fig.update_traces(
-        marker=dict(
-            color='rgb(0, 100, 0)',
-            line=dict(width=1, color='rgb(40, 40, 40)'),
-        )
     )
     
     return fig
