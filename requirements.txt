@@ -1,7 +1,11 @@
-
 logzero
 networkx
 numpy
 pandas
 plotly
 streamlit
+PyMuPDF
+geopy
+folium
+streamlit-folium
+spacy
