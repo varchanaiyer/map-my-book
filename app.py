@@ -13,122 +13,115 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS to match the style
-st.markdown("""
-    <style>
-    .stApp {
-        max-width: 100%;
-        padding: 1rem;
-    }
-    .uploadedFile {
-        margin-bottom: 2rem;
-    }
-    .main > div {
-        padding: 0;
-    }
-    .stButton button {
-        width: 100%;
-        margin-top: 1rem;
-    }
-    </style>
-""", unsafe_allow_html=True)
+# Title in main area
+st.title("📚 Book Location Mapper")
 
-# Sidebar
-with st.sidebar:
-    st.title("📚 Book Location Mapper")
+# Initialize session state
+if 'locations' not in st.session_state:
+    st.session_state.locations = None
+if 'geocoded_places' not in st.session_state:
+    st.session_state.geocoded_places = None
+if 'extracted_text' not in st.session_state:
+    st.session_state.extracted_text = None
+
+# File uploader
+uploaded_file = st.file_uploader(
+    "Upload PDF Book",
+    type=['pdf'],
+    help="Maximum file size: 200MB",
+)
+
+# Analyze button
+analyze_button = st.button("Analyze Locations", type="primary", use_container_width=True)
+
+# Add expander for what is this
+with st.expander("What is this?"):
+    st.write("""
+    This app analyzes PDF books to find and map mentioned locations. It uses:
+    - Natural Language Processing to identify location names
+    - Geocoding to find coordinates
+    - Interactive mapping to visualize locations
     
-    with st.form("upload_form"):
-        uploaded_file = st.file_uploader(
-            "Upload PDF Book",
-            type=['pdf'],
-            help="Maximum file size: 200MB"
-        )
-        analyze_button = st.form_submit_button(
-            "Analyze Locations",
-            use_container_width=True
-        )
-    
-    with st.expander("What is this?"):
-        st.markdown("""
-            This app extracts and maps locations mentioned in books:
-            
-            - Upload any PDF book
-            - AI identifies location mentions
-            - Interactive map shows where story takes place
-            - See location frequency and distribution
-            
-            Perfect for analyzing travel books, novels, or any text with geographic references.
-        """)
+    The size of each marker indicates how frequently the location is mentioned.
+    """)
 
-# Main content area with three columns
-if 'locations_df' not in st.session_state:
-    st.session_state.locations_df = None
-    
-map_col, stats_col = st.columns([7, 3])
-
-with map_col:
-    # Initialize empty map container
-    map_container = st.empty()
-    
-    # Show default world map if no data
-    if st.session_state.locations_df is None:
-        fig = plot_locations.create_empty_map()
-        map_container.plotly_chart(fig, use_container_width=True)
-
-with stats_col:
-    stats_container = st.empty()
-
-# Process uploaded file
+# Main content
 if analyze_button and uploaded_file is not None:
     try:
-        with st.spinner("Processing PDF..."):
+        with st.spinner('Processing PDF...'):
             # Extract text
             text = data_munging.extract_text_from_pdf(uploaded_file)
+            st.session_state.extracted_text = text
             
             # Extract locations
             locations = data_munging.extract_locations(text)
+            st.session_state.locations = locations
             
             if locations:
-                # Create DataFrame for locations
-                locations_df = pd.DataFrame([
-                    {
-                        'location': place,
-                        'mentions': count
-                    } for place, count in locations.items()
-                ]).sort_values('mentions', ascending=False)
-                
                 # Geocode locations
-                with st.spinner("Geocoding locations..."):
+                with st.spinner('Finding locations on map...'):
                     geocoded_places = data_munging.geocode_places(locations)
-                    
-                if geocoded_places:
-                    # Create map
-                    geo_df = pd.DataFrame(geocoded_places)
-                    fig = plot_locations.create_location_map(geo_df)
-                    map_container.plotly_chart(fig, use_container_width=True)
-                    
-                    # Update statistics
-                    with stats_col:
-                        st.subheader("📊 Statistics")
-                        st.metric("Total Locations", len(locations))
-                        st.metric("Mapped Locations", len(geocoded_places))
-                        
-                        if len(locations_df) > 0:
-                            st.metric(
-                                "Most Mentioned",
-                                locations_df.iloc[0]['location'],
-                                f"{locations_df.iloc[0]['mentions']} times"
-                            )
-                        
-                        st.subheader("Top Locations")
-                        st.dataframe(
-                            locations_df.head(10),
-                            hide_index=True,
-                            use_container_width=True
-                        )
-                else:
-                    st.error("Could not geocode any locations.")
-            else:
-                st.warning("No locations found in the text.")
+                    st.session_state.geocoded_places = geocoded_places
+
     except Exception as e:
         st.error(f"Error processing file: {str(e)}")
+
+# Create columns for layout
+map_col, stats_col = st.columns([7, 3])
+
+with map_col:
+    # Show map if we have geocoded places
+    if st.session_state.geocoded_places:
+        geo_df = pd.DataFrame(st.session_state.geocoded_places)
+        fig = plot_locations.create_location_map(geo_df)
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        # Show empty world map
+        fig = plot_locations.create_empty_map()
+        st.plotly_chart(fig, use_container_width=True)
+    
+    # Add text area below map to show extracted locations
+    if st.session_state.locations:
+        st.subheader("📍 Extracted Locations")
+        locations_text = "\n".join([
+            f"• {place}: {count} mentions"
+            for place, count in st.session_state.locations.items()
+        ])
+        st.text_area(
+            "Found locations with mention counts:",
+            value=locations_text,
+            height=200,
+            disabled=True
+        )
+
+with stats_col:
+    if st.session_state.locations:
+        st.subheader("📊 Statistics")
+        
+        # Create DataFrame for locations
+        locations_df = pd.DataFrame([
+            {'Location': place, 'Mentions': count}
+            for place, count in st.session_state.locations.items()
+        ]).sort_values('Mentions', ascending=False)
+        
+        # Display metrics
+        total_locations = len(st.session_state.locations)
+        mapped_locations = len(st.session_state.geocoded_places) if st.session_state.geocoded_places else 0
+        
+        st.metric("Total Locations Found", total_locations)
+        st.metric("Successfully Mapped", mapped_locations)
+        
+        if len(locations_df) > 0:
+            st.metric(
+                "Most Mentioned Location",
+                locations_df.iloc[0]['Location'],
+                f"{locations_df.iloc[0]['Mentions']} mentions"
+            )
+        
+        # Display top locations table
+        st.subheader("Top Locations")
+        st.dataframe(
+            locations_df.head(10),
+            hide_index=True,
+            use_container_width=True
+        )
