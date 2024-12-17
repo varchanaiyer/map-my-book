@@ -1,48 +1,30 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from pathlib import Path
-import subprocess
-import sys
 import spacy
 import fitz
 from geopy.geocoders import Nominatim
 import time
-import os
 
 # Page config
 st.set_page_config(page_title="Book Location Mapper", layout="wide", page_icon="📚")
 
-def install_spacy_model():
+@st.cache_resource
+def load_spacy_model():
+    """Load spaCy model with caching"""
     try:
-        # First try to load the model
-        nlp = spacy.load('en_core_web_sm')
-        return True
+        return spacy.load('en_core_web_sm')
     except OSError:
-        try:
-            # If loading fails, try to install using pip instead of spacy download
-            st.info("Installing required language model...")
-            subprocess.run([
-                sys.executable, 
-                "-m", 
-                "pip", 
-                "install", 
-                "--no-cache-dir",
-                "en-core-web-sm@https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.0/en_core_web_sm-3.7.0-py3-none-any.whl"
-            ], check=True, capture_output=True)
-            st.success("Model installed successfully!")
-            return True
-        except subprocess.CalledProcessError as e:
-            st.error(f"""Failed to install spaCy model. 
-            If you're running this locally, try running:
-            python -m spacy download en_core_web_sm
-            from your command line first.
-            
-            Error: {str(e)}""")
-            return False
-        except Exception as e:
-            st.error(f"Unexpected error during installation: {str(e)}")
-            return False
+        st.error("""
+        SpaCy model not found. Please make sure to install it in your deployment environment using:
+        
+        ```
+        python -m spacy download en_core_web_sm
+        ```
+        
+        Add this to your deployment requirements or setup script.
+        """)
+        return None
 
 # Create the split layout
 col1, col2 = st.columns([1, 2])
@@ -50,6 +32,9 @@ col1, col2 = st.columns([1, 2])
 with col1:
     st.title("📚 Book Location Mapper")
     st.markdown("---")
+    
+    # Load spaCy model at startup
+    nlp = load_spacy_model()
     
     # File upload section
     st.subheader("Upload Your Book")
@@ -59,35 +44,30 @@ with col1:
         st.info(f"File uploaded: {uploaded_file.name}")
         
         # Show analysis button
-        if st.button("Analyze Locations"):
-            # Install spacy model if needed
-            if install_spacy_model():
-                # Process the PDF
-                with st.spinner('Extracting text from PDF...'):
-                    try:
-                        doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
-                        text = ""
-                        for page in doc:
-                            text += page.get_text()
-                        
-                        # Extract locations
-                        nlp = spacy.load('en_core_web_sm')
-                        doc = nlp(text)
-                        
-                        locations = {}
-                        for ent in doc.ents:
-                            if ent.label_ in ['GPE', 'LOC', 'FAC']:
-                                loc_name = ent.text.strip()
-                                locations[loc_name] = locations.get(loc_name, 0) + 1
-                        
-                        # Store results in session state
-                        st.session_state['locations'] = locations
-                        st.success("✅ Analysis complete!")
-                        
-                    except Exception as e:
-                        st.error(f"Error processing PDF: {str(e)}")
-            else:
-                st.error("Cannot proceed without the required language model.")
+        if st.button("Analyze Locations") and nlp is not None:
+            # Process the PDF
+            with st.spinner('Extracting text from PDF...'):
+                try:
+                    doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
+                    text = ""
+                    for page in doc:
+                        text += page.get_text()
+                    
+                    # Extract locations
+                    doc = nlp(text)
+                    
+                    locations = {}
+                    for ent in doc.ents:
+                        if ent.label_ in ['GPE', 'LOC', 'FAC']:
+                            loc_name = ent.text.strip()
+                            locations[loc_name] = locations.get(loc_name, 0) + 1
+                    
+                    # Store results in session state
+                    st.session_state['locations'] = locations
+                    st.success("✅ Analysis complete!")
+                    
+                except Exception as e:
+                    st.error(f"Error processing PDF: {str(e)}")
     
     # Display locations list if available
     if 'locations' in st.session_state:
