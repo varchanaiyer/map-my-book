@@ -8,4 +8,4 @@ PyMuPDF
 geopy
 folium
 streamlit-folium
-spacy
+spacy>=3.0.0
