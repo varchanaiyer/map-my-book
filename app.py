@@ -18,14 +18,14 @@ import time
 # Page config
 st.set_page_config(page_title="Book Location Mapper", layout="wide", page_icon="📚")
 
-def clear_state():
-    """Clear all session state variables"""
+def clear_session_state():
+    """Clear all relevant session state variables"""
     if 'locations' in st.session_state:
         del st.session_state['locations']
     if 'tour_stops' in st.session_state:
         del st.session_state['tour_stops']
-    if 'current_file' in st.session_state:
-        del st.session_state['current_file']
+    if 'previous_file' in st.session_state:
+        del st.session_state['previous_file']
 
 @st.cache_resource
 def load_nlp_model():
@@ -108,19 +108,23 @@ with col1:
     
     # File upload section
     st.subheader("Upload Your Book")
-    uploaded_file = st.file_uploader("Choose a PDF file", type=['pdf'], key="pdf_uploader")
+    uploaded_file = st.file_uploader("Choose a PDF file", type=['pdf'])
     
     # Clear state if a new file is uploaded
     if uploaded_file:
         if 'current_file' not in st.session_state or st.session_state['current_file'] != uploaded_file.name:
-            clear_state()
+            clear_session_state()
             st.session_state['current_file'] = uploaded_file.name
         
         st.info(f"File uploaded: {uploaded_file.name}")
         
         # Show analysis button
         if st.button("Create Literary Tour"):
-            # Process the PDF
+             # Clear previous results before new analysis
+            clear_session_state()
+            st.session_state['previous_file'] = uploaded_file.name
+            
+
             with st.spinner('Creating your literary tour guide...'):
                 try:
                     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
