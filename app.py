@@ -205,7 +205,7 @@ with col2:
                 st.warning("No locations could be mapped.")
     else:
         # Show empty map or placeholder
-        st.info("Upload a PDF and click 'Analyze Locations' to see the map.")
+        st.info("Upload a PDF and click 'Create Literary Tour' to see the map.")
 
     # Display tour guide under the map if available
     if 'tour_stops' in st.session_state:
