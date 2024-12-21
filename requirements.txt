@@ -1,6 +1,5 @@
 logzero
 networkx
-numpy
 pandas>=1.5.3
 plotly>=5.13.1
 streamlit>=1.24.0
