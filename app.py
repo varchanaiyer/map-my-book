@@ -29,6 +29,9 @@ def load_spacy_model():
 # Create the split layout
 col1, col2 = st.columns([1, 2])
 
+# Load the model at startup
+nlp = load_nlp_model()
+
 with col1:
     st.title("📚 Book Location Mapper")
     st.markdown("---")
@@ -40,11 +43,11 @@ with col1:
     st.subheader("Upload Your Book")
     uploaded_file = st.file_uploader("Choose a PDF file", type=['pdf'])
     
-    if uploaded_file:
+    if uploaded_file and nlp:
         st.info(f"File uploaded: {uploaded_file.name}")
         
         # Show analysis button
-        if st.button("Analyze Locations") and nlp is not None:
+        if st.button("Analyze Locations"):
             # Process the PDF
             with st.spinner('Extracting text from PDF...'):
                 try:
@@ -52,6 +55,7 @@ with col1:
                     text = ""
                     for page in doc:
                         text += page.get_text()
+
                     
                     # Extract locations
                     doc = nlp(text)
