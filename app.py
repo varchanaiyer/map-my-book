@@ -20,12 +20,10 @@ st.set_page_config(page_title="Book Location Mapper", layout="wide", page_icon="
 
 def clear_session_state():
     """Clear all relevant session state variables"""
-    if 'locations' in st.session_state:
-        del st.session_state['locations']
-    if 'tour_stops' in st.session_state:
-        del st.session_state['tour_stops']
-    if 'previous_file' in st.session_state:
-        del st.session_state['previous_file']
+    keys_to_clear = ['locations', 'tour_stops', 'previous_file', 'text_content']
+    for key in keys_to_clear:
+        if key in st.session_state:
+            del st.session_state[key]
 
 @st.cache_resource
 def load_nlp_model():
@@ -44,16 +42,6 @@ def load_nlp_model():
         st.error(f"Unexpected error loading NLP model: {str(e)}")
         st.stop()
 
-@st.cache_resource
-def load_nlp_model():
-    """Load spaCy model with caching and proper error handling"""
-    try:
-        import spacy
-        import en_core_web_sm
-        return en_core_web_sm.load()
-    except Exception as e:
-        st.error(f"Error loading NLP model: {str(e)}")
-        st.stop()
 
 def extract_context(text, location, window_size=200):
     """Extract context around location mentions"""
@@ -81,6 +69,7 @@ def extract_context(text, location, window_size=200):
         contexts.append(context)
     
     return contexts
+
 def create_tour_guide(text, locations):
     """Create a tour guide from the extracted locations and their contexts"""
     tour_stops = {}
@@ -120,26 +109,27 @@ with col1:
         
         # Show analysis button
         if st.button("Create Literary Tour"):
-             # Clear previous results before new analysis
-            clear_session_state()
-            st.session_state['previous_file'] = uploaded_file.name
-            
-
             with st.spinner('Creating your literary tour guide...'):
                 try:
                     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                     text = ""
                     for page in doc:
                         text += page.get_text()
-                    
-                    # Extract locations
-                    doc = nlp(text)
-                    
+                        page.close()  # Close each page after reading
+                    doc.close()  # Close the document
+
+                    # Process text in chunks for NLP
+                    chunk_size = 100000  # Process 100KB at a time
                     locations = {}
-                    for ent in doc.ents:
-                        if ent.label_ in ['GPE', 'LOC', 'FAC']:
-                            loc_name = ent.text.strip()
-                            locations[loc_name] = locations.get(loc_name, 0) + 1
+
+                    for i in range(0, len(text), chunk_size):
+                        chunk = text[i:i + chunk_size]
+                        doc = nlp(chunk)
+
+                        for ent in doc.ents:
+                            if ent.label_ in ['GPE', 'LOC', 'FAC']:
+                                loc_name = ent.text.strip()
+                                locations[loc_name] = locations.get(loc_name, 0) + 1
                     
                     # Create tour guide
                     tour_stops = create_tour_guide(text, locations)
