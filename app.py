@@ -34,6 +34,58 @@ def load_nlp_model():
         st.error(f"Unexpected error loading NLP model: {str(e)}")
         st.stop()
 
+@st.cache_resource
+def load_nlp_model():
+    """Load spaCy model with caching and proper error handling"""
+    try:
+        import spacy
+        import en_core_web_sm
+        return en_core_web_sm.load()
+    except Exception as e:
+        st.error(f"Error loading NLP model: {str(e)}")
+        st.stop()
+
+def extract_context(text, location, window_size=200):
+    """Extract context around location mentions"""
+    contexts = []
+    location_pattern = re.compile(r'\b' + re.escape(location) + r'\b', re.IGNORECASE)
+    
+    for match in location_pattern.finditer(text):
+        start = max(0, match.start() - window_size)
+        end = min(len(text), match.end() + window_size)
+        
+        # Get the context
+        context = text[start:end]
+        
+        # Clean up the context
+        context = context.replace('\n', ' ')
+        context = re.sub(r'\s+', ' ', context)
+        context = context.strip()
+        
+        # Add ellipsis if we're not at the start/end of the text
+        if start > 0:
+            context = '...' + context
+        if end < len(text):
+            context = context + '...'
+            
+        contexts.append(context)
+    
+    return contexts
+def create_tour_guide(text, locations):
+    """Create a tour guide from the extracted locations and their contexts"""
+    tour_stops = {}
+    
+    for location, count in locations.items():
+        contexts = extract_context(text, location)
+        if contexts:
+            # Keep only unique contexts
+            unique_contexts = list(set(contexts))
+            tour_stops[location] = {
+                'mentions': count,
+                'contexts': unique_contexts[:3]  # Limit to 3 most relevant contexts
+            }
+    
+    return tour_stops
 # Create the split layout
 col1, col2 = st.columns([1, 2])
 
@@ -52,15 +104,14 @@ with col1:
         st.info(f"File uploaded: {uploaded_file.name}")
         
         # Show analysis button
-        if st.button("Analyze Locations"):
+        if st.button("Create Literary Tour"):
             # Process the PDF
-            with st.spinner('Extracting text from PDF...'):
+            with st.spinner('Creating your literary tour guide...'):
                 try:
                     doc = fitz.open(stream=uploaded_file.read(), filetype="pdf")
                     text = ""
                     for page in doc:
                         text += page.get_text()
-
                     
                     # Extract locations
                     doc = nlp(text)
@@ -71,23 +122,16 @@ with col1:
                             loc_name = ent.text.strip()
                             locations[loc_name] = locations.get(loc_name, 0) + 1
                     
+                    # Create tour guide
+                    tour_stops = create_tour_guide(text, locations)
+                    
                     # Store results in session state
                     st.session_state['locations'] = locations
-                    st.success("✅ Analysis complete!")
+                    st.session_state['tour_stops'] = tour_stops
+                    st.success("✅ Tour guide created!")
                     
                 except Exception as e:
                     st.error(f"Error processing PDF: {str(e)}")
-    
-    # Display locations list if available
-    if 'locations' in st.session_state:
-        st.markdown("---")
-        st.subheader("📍 Locations Found")
-        locations_df = pd.DataFrame([
-            {"Location": k, "Mentions": v} 
-            for k, v in st.session_state['locations'].items()
-        ]).sort_values("Mentions", ascending=False)
-        
-        st.dataframe(locations_df, use_container_width=True)
 
 with col2:
     st.title("Location Map")
@@ -147,3 +191,20 @@ with col2:
     else:
         # Show empty map or placeholder
         st.info("Upload a PDF and click 'Analyze Locations' to see the map.")
+
+    # Display tour guide under the map if available
+    if 'tour_stops' in st.session_state:
+        st.markdown("---")
+        st.subheader("📚 Literary Tour Guide")
+        st.markdown("### Follow the footsteps of the characters through these locations:")
+        
+        for location, details in st.session_state['tour_stops'].items():
+            with st.expander(f"📍 {location} ({details['mentions']} mentions)"):
+                for i, context in enumerate(details['contexts'], 1):
+                    st.markdown(f"**Scene {i}:**")
+                    st.markdown(f"_{context}_")
+                    if i < len(details['contexts']):
+                        st.markdown("---")
+
+
+
