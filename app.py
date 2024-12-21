@@ -1,10 +1,18 @@
 import streamlit as st
+import sys
+
+# First, ensure numpy is loaded
+try:
+    import numpy
+except ImportError:
+    st.error("Required dependencies not found. Please check your installation.")
+    st.stop()
+
 import pandas as pd
 import plotly.express as px
 import fitz
 from geopy.geocoders import Nominatim
 import time
-import sys
 
 # Page config
 st.set_page_config(page_title="Book Location Mapper", layout="wide", page_icon="📚")
@@ -36,14 +44,11 @@ with col1:
     st.title("📚 Book Location Mapper")
     st.markdown("---")
     
-    # Load spaCy model at startup
-    nlp = load_spacy_model()
-    
     # File upload section
     st.subheader("Upload Your Book")
     uploaded_file = st.file_uploader("Choose a PDF file", type=['pdf'])
     
-    if uploaded_file and nlp:
+    if uploaded_file:
         st.info(f"File uploaded: {uploaded_file.name}")
         
         # Show analysis button
