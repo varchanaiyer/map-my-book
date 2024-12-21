@@ -1,11 +1,11 @@
 logzero
 networkx
 numpy
-pandas
-plotly
-streamlit
-PyMuPDF
-geopy
+pandas>=1.5.3
+plotly>=5.13.1
+streamlit>=1.24.0
+PyMuPDF>=1.22.3
+geopy>=2.3.0
 folium
 streamlit-folium
 spacy>=3.0.0
