@@ -1,5 +1,6 @@
 import streamlit as st
 import sys
+import re
 
 # First, ensure numpy is loaded
 try:
