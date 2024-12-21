@@ -1,10 +1,10 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import spacy
 import fitz
 from geopy.geocoders import Nominatim
 import time
+import sys
 
 # Page config
 st.set_page_config(page_title="Book Location Mapper", layout="wide", page_icon="📚")
