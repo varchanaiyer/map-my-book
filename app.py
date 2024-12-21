@@ -10,21 +10,21 @@ import sys
 st.set_page_config(page_title="Book Location Mapper", layout="wide", page_icon="📚")
 
 @st.cache_resource
-def load_spacy_model():
-    """Load spaCy model with caching"""
+def load_nlp_model():
+    """Load spaCy model with caching and proper error handling"""
     try:
-        return spacy.load('en_core_web_sm')
-    except OSError:
-        st.error("""
-        SpaCy model not found. Please make sure to install it in your deployment environment using:
-        
-        ```
-        python -m spacy download en_core_web_sm
-        ```
-        
-        Add this to your deployment requirements or setup script.
+        import spacy
+        import en_core_web_sm
+        return en_core_web_sm.load()
+    except ImportError as e:
+        st.error(f"""
+        Unable to load required dependencies. Error: {str(e)}
+        Please check your deployment configuration and ensure all requirements are properly installed.
         """)
-        return None
+        st.stop()
+    except Exception as e:
+        st.error(f"Unexpected error loading NLP model: {str(e)}")
+        st.stop()
 
 # Create the split layout
 col1, col2 = st.columns([1, 2])
